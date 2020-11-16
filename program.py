@@ -1,12 +1,22 @@
 import numpy as np
 import cv2
 import tss
+import new_tss
 import os
 import copy
+import framecollect
 
 videopath = "casa_480.mp4"
-
+#framecollect.getFrames(videopath)
 #cv2.arrowedLine(image, start_point, end_point, color, thickness)
+prevFrame= "testImages/frame10.png"
+frame = "testImages/frame12.png"
+cv2.imread(prevFrame)
+editedFrame = new_tss.main(cv2.imread(prevFrame),cv2.imread(frame))
+cv2.imshow(videopath,editedFrame)
+cv2.waitKey()
+        
+"""
 def play_video(videopath):
     # load video capture from file
     video = cv2.VideoCapture(videopath)
@@ -40,3 +50,4 @@ def play_video(videopath):
 
 
 play_video(videopath)
+"""

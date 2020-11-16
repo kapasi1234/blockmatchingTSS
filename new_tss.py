@@ -65,7 +65,7 @@ def getAnchorSearchArea(x, y, anchor, blockSize, searchArea):
 
     return anchorSearch,sx,sy
 
-def getBlockZone(p, aSearch, tBlock, blockSize):
+def getBlockZone(p, aSearch, anchor, tBlock, blockSize):
     """
     Retrieves the block searched in the anchor search area to be compared with the macroblock tBlock in the current frame
     :param p: x,y coordinates of macroblock center from current frame
@@ -74,11 +74,13 @@ def getBlockZone(p, aSearch, tBlock, blockSize):
     :param blockSize: size of macroblock in pixels
     :return: macroblock from anchor
     """
+    h,w = anchor.shape
     px, py = p # coordinates of macroblock center
-    px, py = px-int(blockSize/2), py-int(blockSize/2) # get top left corner of macroblock
-    px, py = max(0,px), max(0,py) # ensure macroblock is within bounds
+    px, py = max(0,px-int(blockSize/2)),max(0, py-int(blockSize/2)) # get top left corner of macroblock
+    #px, py = max(0,px), max(0,py) # ensure macroblock is within bounds
+    px,py = min(px,w-blockSize),min(py, h-blockSize)
 
-    aBlock = aSearch[py:py+blockSize, px:px+blockSize] # retrive macroblock from anchor search area
+    aBlock = anchor[py:py+blockSize, px:px+blockSize] # retrive macroblock from anchor search area
 
 
     try:
@@ -96,7 +98,7 @@ def getMAD(tBlock, aBlock):
     """
     return np.sum(np.abs(np.subtract(tBlock, aBlock)))/(tBlock.shape[0]*tBlock.shape[1])
 
-def getBestMatch(tBlock, aSearch, blockSize): #3 Step Search
+def getBestMatch(tBlock, aSearch,anchor,sx,sy, blockSize,x,y): #3 Step Search
     """
     Implemented 3 Step Search. Read about it here: https://en.wikipedia.org/wiki/Block-matching_algorithm#Three_Step_Search
     :param tBlock: macroblock from current frame
@@ -104,9 +106,9 @@ def getBestMatch(tBlock, aSearch, blockSize): #3 Step Search
     :param blockSize: size of macroblock in pixels
     :return: macroblock from anchor search area with least MAD
     """
-    step = 4
-    ah, aw = aSearch.shape
-    acy, acx = int(ah/2), int(aw/2) # get center of anchor search area
+    step = 7
+    #ah, aw = aSearch.shape
+    acy, acx = y+int(blockSize/2), x + int(blockSize/2) # get center of anchor search area
 
     minMAD = float("+inf")
     minP = None
@@ -124,20 +126,20 @@ def getBestMatch(tBlock, aSearch, blockSize): #3 Step Search
         pointList = [p1,p2,p3,p4,p5,p6,p7,p8,p9] # retrieve 9 search points
 
         for p in range(len(pointList)):
-            aBlock,px1,py1 = getBlockZone(pointList[p], aSearch, tBlock, blockSize) # get anchor macroblock
+            aBlock,px1,py1 = getBlockZone(pointList[p], aSearch, anchor, tBlock, blockSize) # get anchor macroblock
             MAD = getMAD(tBlock, aBlock) # determine MAD
             if MAD < minMAD: # store point with minimum MAD
-                if MAD < 20.00:
+                if MAD < 5.00:
                     minMAD = MAD
-                    minP = (px1+int(blockSize/2),py1+int(blockSize/2))
+                    minP = (px1,py1)
                 else:
-                    minP = (0,0)
+                    minP = (acx- int(blockSize/2), acy- int(blockSize/2))
 
         step = int(step/2)
 
     px, py = minP # center of anchor block with minimum MAD
-    px, py = px - int(blockSize / 2), py - int(blockSize / 2) # get top left corner of minP
-    px, py = max(0, px), max(0, py) # ensure minP is within bounds
+    #px, py = px - int(blockSize / 2), py - int(blockSize / 2) # get top left corner of minP
+    #px, py = max(0, px), max(0, py) # ensure minP is within bounds
     matchBlock = aSearch[py:py + blockSize, px:px + blockSize] # retrieve best macroblock from anchor search area
 
     return matchBlock,px,py
@@ -169,13 +171,11 @@ def blockSearchBody(anchor, target, blockSize, searchArea=7):
             
             #print("AnchorSearchArea: ", anchorSearchArea.shape)
 
-            anchorBlock,px,py = getBestMatch(targetBlock, anchorSearchArea, blockSize) #get best anchor macroblock
+            anchorBlock,px,py = getBestMatch(targetBlock, anchorSearchArea,anchor,sx,sy, blockSize,x,y) #get best anchor macroblock
             
             #predicted[y:y+blockSize, x:x+blockSize] = anchorBlock #add anchor block to predicted frame
-            if (px,py) == (0,0):
-                 vectors.append((x,y))
-            else:
-                vectors.append((sx+px,sy+py))
+            
+            vectors.append((px,py))
             
             
             bcount+=1
@@ -191,22 +191,6 @@ def blockSearchBody(anchor, target, blockSize, searchArea=7):
 
     return vectors
 
-def getResidual(target, predicted):
-    """Create residual frame from target frame - predicted frame"""
-    return np.subtract(target, predicted)
-
-def getReconstructTarget(residual, predicted):
-    """Reconstruct target frame from residual frame plus predicted frame"""
-    return np.add(residual, predicted)
-
-def showImages(*kwargs): #shows images
-    for k in range(len(kwargs)):
-        cv2.imshow(f"Image: {k}", k)
-        cv2.waitKey(-1)
-
-def getResidualMetric(residualFrame):
-    """Calculate residual metric from average of sum of absolute residual values in residual frame"""
-    return np.sum(np.abs(residualFrame))/(residualFrame.shape[0]*residualFrame.shape[1])
 
 def preprocess(anchor, target, blockSize):
 
@@ -252,7 +236,7 @@ def main(anchorFrame, targetFrame, outfile="OUTPUT", saveOutput=False, blockSize
                 if (x,y) != vectors[bcount] :
                         #print((x,y))
                         #print(vectors[bcount])
-                    cv2.arrowedLine(editedFrame, (x,y), vectors[bcount], (0,255,0), 1)
+                    cv2.arrowedLine(editedFrame,(x,y),vectors[bcount], (0,255,0), 1)
                 bcount = bcount + 1
     #residualFrame = getResidual(targetFrame, predictedFrame)
     #naiveResidualFrame = getResidual(anchorFrame, targetFrame)
