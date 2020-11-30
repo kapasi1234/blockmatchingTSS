@@ -1,42 +1,93 @@
+
+import sys
 import numpy as np
-import cv2
+from cv2 import cv2 
 import tss
-import os
+import new_tss
+
 import copy
+import ebma
+import framecollect as fc
 
-videopath = "casa_480.mp4"
-
+videopath = "casa_360.mp4"
+prevFrame= "testImages/frame91.png"
+frame = "testImages/frame94.png"
+#framecollect.getFrames(videopath)
 #cv2.arrowedLine(image, start_point, end_point, color, thickness)
-def play_video(videopath):
-    # load video capture from file
+"""
+cv2.imread(prevFrame)
+editedFrame = new_tss.main(cv2.imread(prevFrame),cv2.imread(frame))
+cv2.imshow(videopath,editedFrame)
+cv2.waitKey()
+
+"""
+
+
+
+def run_TSSvideo(videopath):
     video = cv2.VideoCapture(videopath)
-    # window name and size
-    #cv2.namedWindow("video", cv2.WINDOW_AUTOSIZE)
+    
+    
     prevFrame = None
-    N= 8
-    count=False
+    
+    count=True
     while video.isOpened():
-        # Read video capture
+        
         ret, frame = video.read()
         
-        if count<1:
-            prevFrame= frame
+        if count:
+            prevFrame = frame
+            count = False
         
-        editedFrame = tss.main(prevFrame,frame)
+        editedFrame = new_tss.main(prevFrame,frame,blockSize=8)
+        prevFrame = frame
         
-        #cv2.imshow("video", editedFrame)
-        
-        
-            
-        # Quit when 'q' is pressed
+
         cv2.imshow(videopath,editedFrame)
         if cv2.waitKey(1) == ord('q'):
             break
-        count+=1
-    # Release capture object
+        
+  
     video.release()
-    # Exit and distroy all windows
+    
     cv2.destroyAllWindows()
 
+def run_EBMAvideo(videopath):
+    video = cv2.VideoCapture(videopath)
+    
+    prevFrame = None
+    count=True
+    while video.isOpened():
+        
+        ret, frame = video.read()
+        
+        if count:
+            prevFrame = frame
+            count = False
+        
+        editedFrame = ebma.main(prevFrame,frame, blockSize=8)
+        prevFrame = frame
+       
+        cv2.imshow(videopath,editedFrame)
+        if cv2.waitKey(1) == ord('q'):
+            break
+        
+    
+    video.release()
+    
+    cv2.destroyAllWindows()
+def run_TSS2frames(frame, prevFrame):
+    
+    editedFrame = new_tss.main(cv2.imread(prevFrame),cv2.imread(frame))
+    cv2.imshow(videopath,editedFrame)
+    cv2.waitKey()
+def run_EBMA2frames(frame, prevFrame):
+    
+    editedFrame = ebma.main(cv2.imread(prevFrame),cv2.imread(frame))
+    cv2.imshow(videopath,editedFrame)
+    cv2.waitKey()
 
-play_video(videopath)
+run_TSSvideo(videopath)
+#run_EBMAvideo(videopath)
+#run_EBMA2frames(frame,prevFrame)
+#run_TSS2frames(frame,prevFrame)
